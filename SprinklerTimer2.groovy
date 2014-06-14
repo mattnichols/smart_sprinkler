@@ -28,22 +28,42 @@ definition(
 )
 
 preferences {
-	section("Water every..."){
-		input "days", "number", title: "Days?", required: true
-	}
-	section("Water at..."){
-		input "time", "time", title: "When?", required: true
-	}
-	section("Sprinkler switches..."){
-		input "switches", "capability.switch", multiple: true
-	}
-	section("Zip code to check weather..."){
-		input "zipcode", "text", title: "Zipcode?", required: false
-	}
-    section("Skip watering if more than... (default 0.5)"){
-		input "wetThreshold", "number", title: "Inches?", required: false
-	}
-
+	page(name: "schedulePage", title: "Schedule", nextPage: "sprinklerPage", uninstall: true) {
+		section("Water every...") {
+			input "days", "number", title: "Days?", required: true
+		}
+		section("Water at...") {
+			input "time", "time", title: "When?", required: true
+		}
+    	section("Use this virtual scheduler device...") {
+    		input "schedulerVirtualDevice", "capability.actuator", required: false
+    	}
+    }
+    page(name: "sprinklerPage", title: "Sprinkler Controller Setup", nextPage: "weatherPage", install: true) {
+		section("Sprinkler switches...") {
+			input "switches", "capability.switch", multiple: true
+		}
+        section("Zone Times") {
+			input "zone1", "string", title: "zone 1", multiple: false, required: false
+			input "zone2", "string", title: "zone 2", multiple: false, required: false
+			input "zone3", "string", title: "zone 3", multiple: false, required: false
+			input "zone4", "string", title: "zone 4", multiple: false, required: false
+			input "zone5", "string", title: "zone 5", multiple: false, required: false
+			input "zone6", "string", title: "zone 6", multiple: false, required: false
+			input "zone7", "string", title: "zone 7", multiple: false, required: false
+			input "zone8", "string", title: "zone 8", multiple: false, required: false
+		}
+    }
+    /*
+    page(name: "weatherPage", title: "Weather Settings", install: true) {
+		section("Zip code to check weather...") {
+			input "zipcode", "text", title: "Zipcode?", required: false
+		}
+    	section("Skip watering if more than... (default 0.5)") {
+			input "wetThreshold", "number", title: "Inches?", required: false
+		}
+    }
+    */
 }
 
 def installed() {
@@ -51,8 +71,6 @@ def installed() {
 	
 	subscribe(switches, "switch.on", sprinklersOn)
 	schedule(time, "scheduleCheck")
-	
-	//sendPush("Next watering in ${days - daysSince()} days!")
 }
 
 def updated() {
@@ -63,8 +81,6 @@ def updated() {
 	
 	subscribe(switches, "switch.on", sprinklersOn)
 	schedule(time, "scheduleCheck")
-	
-	//sendPush("Next watering in ${days - daysSince()} days!")
 }
 
 def sprinklersOn(evt) {
@@ -76,21 +92,63 @@ def sprinklersOn(evt) {
 }
 
 def scheduleCheck() {
-	state.daysSinceLastWatering = daysSince() + 1
-    def inches = todaysPercip()
-	log.info("Checking sprinkler schedule. ${daysSince()} days since laster watering. ${inches} inches of percip today. Threshold: ${wetThreshold?.toFloat() ?: 0.5}")
+	log.debug("Schedule check")
     
-    if(inches >= (wetThreshold?.toFloat() ?: 0.5)) {
-		sendPush("Looks like it was a wet day ($inches inches). Pushing back next watering day.")
-        state.daysSinceLastWatering = 0
-        switches.rainDelayed()
-	} else if (daysSince() >= days) {
-		sendPush("Watering now!")
-        state.triggered = true
-		switches.on()
-        state.daysSinceLastWatering = 0
+    def schedulerState = "noEffect"
+    if (schedulerVirtualDevice) {
+    	schedulerState = schedulerVirtualDevice.latestValue("effect")
+    }
+    
+    if (schedulerState == "onHold") {
+		log.info("Sprinkler schedule on hold.")
+    	return
+    } else {
+        schedulerVirtualDevice?.noEffect()
 	}
+
+    def inches = todaysPercip()
+	if (schedulerState != "delay" && inches < (wetThreshold?.toFloat() ?: 0.5)) {
+		state.daysSinceLastWatering = daysSince() + 1
+    }
+	log.info("Checking sprinkler schedule. ${daysSince()} days since laste watering. ${inches} inches of percip today. Threshold: ${wetThreshold?.toFloat() ?: 0.5}")
+    
+	if (daysSince() >= days || schedulerState == "expedite") {
+		sendPush("Watering now!")
+        water()
+        state.daysSinceLastWatering = 0
+    }
     // Assuming that sprinklers will turn themselves off. Should add a delayed off?
+}
+
+
+def turnOnZone(z) {
+	def zoneTime = settings["zone${z}"]
+    if(zoneTime) {
+    	log.info("Zone ${z} on for ${zoneTime}")
+    	switches."RelayOn${z}For"(zoneTime)
+    }
+}
+
+def water() {
+	state.triggered = true
+    if(anyTimes()) {
+    	turnOnZone(1)
+    	turnOnZone(2)
+    	turnOnZone(3)
+    	turnOnZone(4)
+    	turnOnZone(5)
+    	turnOnZone(6)
+    	turnOnZone(7)
+    	turnOnZone(8)
+        
+    } else {
+    	log.debug("Turning all zones on")
+    	switches.on()
+	}
+}
+
+def anyTimes() {
+	return zone1 || zone2 || zone3 || zone4 || zone5 || zone6 || zone7 || zone8
 }
 
 def todaysPercip() {

@@ -1,0 +1,53 @@
+metadata {
+
+	// Automatically generated. Make future change here.
+	definition (name: "Sprinkler Scheduler Virtual Switch", namespace: "name.nichols.matthew", author: "matt@nichols.name", version: "0.1") {
+    	capability "actuator"
+        command "noEffect"
+        command "delay"
+        command "expedite"
+        command "onHold"
+        attribute "effect", "string"
+	}
+
+	tiles {
+		standardTile("scheduleEffect", "device.effect", width: 2, height: 2) {
+			state("noEffect", label: "--", action: "delay", icon: "st.Health & Wellness.health7", backgroundColor: "#ffffff")
+			state("delay", label: "delay", action: "expedite", icon: "st.Health & Wellness.health7", backgroundColor: "#c0a353")
+			state("expedite", label: "expedite", action: "onHold", icon: "st.Health & Wellness.health7", backgroundColor: "#53a7c0")
+			state("onHold", label: "on hold", action: "noEffect", icon: "st.Health & Wellness.health7", backgroundColor: "#bc2323")
+		}
+        
+		main(["scheduleEffect"])
+		details(["scheduleEffect"])
+	}
+}
+
+def	delay() {
+	def evt = createEvent(name: "effect", value: "delay", displayed: true)
+    log.debug("Sending: $evt")
+    sendEvent(evt)
+}
+
+def	expedite() {
+	def evt = createEvent(name: "effect", value: "expedite", displayed: true)
+    log.debug("Sending: $evt")
+    sendEvent(evt)
+}
+
+def	noEffect() {
+	def evt = createEvent(name: "effect", value: "noEffect", displayed: true)
+    log.debug("Sending: $evt")
+    sendEvent(evt)
+}
+
+def	onHold() {
+	def evt = createEvent(name: "effect", value: "onHold", displayed: true)
+    log.debug("Sending: $evt")
+    sendEvent(evt)
+}
+
+// Parse incoming device messages to generate events
+def parse(String description) {
+	return null
+}

@@ -31,25 +31,33 @@ preferences {
 }
 
 metadata {
-	definition (name: "Irrigation Controller v2.4", version: "2.4", author: "stan@dotson.info") {
+	definition (name: "Irrigation Controller v2.5", version: "2.5", author: "stan@dotson.info") {
     	capability "Switch"
         capability "Polling"
         capability "Refresh"
 		command "RelayOn1"
+		command "RelayOn1For"
 		command "RelayOff1"
 		command "RelayOn2"
+		command "RelayOn2For"
 		command "RelayOff2"
 		command "RelayOn3"
+		command "RelayOn3For"
 		command "RelayOff3"
 		command "RelayOn4"
+		command "RelayOn4For"
 		command "RelayOff4"
 		command "RelayOn5"
+		command "RelayOn5For"
 		command "RelayOff5"
 		command "RelayOn6"
+		command "RelayOn6For"
 		command "RelayOff6"
 		command "RelayOn7"
+		command "RelayOn7For"
 		command "RelayOff7"
 		command "RelayOn8"
+		command "RelayOn8For"
 		command "RelayOff8"
 		command "rainDelayed"
         	command "update" 
@@ -194,6 +202,12 @@ def RelayOn1() {
 	zigbee.smartShield(text: "on,1,${oneTimer}").format()
 }
 
+def RelayOn1For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,1,$value'"
+	zigbee.smartShield(text: "on,1,${value}").format()
+}
+
 def RelayOff1() {
 	log.debug "Executing 'off,1'"
 	zigbee.smartShield(text: "off,1").format()
@@ -202,6 +216,12 @@ def RelayOff1() {
 def RelayOn2() {
 	log.debug "Executing 'on,2'"
 	zigbee.smartShield(text: "on,2,${twoTimer}").format()
+}
+
+def RelayOn2For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,2,$value'"
+	zigbee.smartShield(text: "on,2,${value}").format()
 }
 
 def RelayOff2() {
@@ -214,6 +234,12 @@ def RelayOn3() {
 	zigbee.smartShield(text: "on,3,${threeTimer}").format()
 }
 
+def RelayOn3For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,3,$value'"
+	zigbee.smartShield(text: "on,3,${value}").format()
+}
+
 def RelayOff3() {
 	log.debug "Executing 'off,3'"
 	zigbee.smartShield(text: "off,3").format()
@@ -222,6 +248,12 @@ def RelayOff3() {
 def RelayOn4() {
 	log.debug "Executing 'on,4'"
 	zigbee.smartShield(text: "on,4,${fourTimer}").format()
+}
+
+def RelayOn4For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,4,$value'"
+	zigbee.smartShield(text: "on,4,${value}").format()
 }
 
 def RelayOff4() {
@@ -234,6 +266,12 @@ def RelayOn5() {
 	zigbee.smartShield(text: "on,5,${fiveTimer}").format()
 }
 
+def RelayOn5For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,5,$value'"
+	zigbee.smartShield(text: "on,5,${value}").format()
+}
+
 def RelayOff5() {
 	log.debug "Executing 'off,5'"
 	zigbee.smartShield(text: "off,5").format()
@@ -242,6 +280,12 @@ def RelayOff5() {
 def RelayOn6() {
 	log.debug "Executing 'on,6'"
 	zigbee.smartShield(text: "on,6,${sixTimer}").format()
+}
+
+def RelayOn6For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,6,$value'"
+	zigbee.smartShield(text: "on,6,${value}").format()
 }
 
 def RelayOff6() {
@@ -254,6 +298,12 @@ def RelayOn7() {
 	zigbee.smartShield(text: "on,7,${sevenTimer}").format()
 }
 
+def RelayOn7For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,7,$value'"
+	zigbee.smartShield(text: "on,7,${value}").format()
+}
+
 def RelayOff7() {
 	log.debug "Executing 'off,7'"
 	zigbee.smartShield(text: "off,7").format()
@@ -262,6 +312,12 @@ def RelayOff7() {
 def RelayOn8() {
 	log.debug "Executing 'on,8'"
 	zigbee.smartShield(text: "on,8,${eightTimer}").format()
+}
+
+def RelayOn8For(value) {
+    value = value > 60 ? 60 : value
+	log.debug "Executing 'on,8,$value'"
+	zigbee.smartShield(text: "on,8,${value}").format()
 }
 
 def RelayOff8() {
