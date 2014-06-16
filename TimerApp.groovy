@@ -13,26 +13,20 @@
  *  for the specific language governing permissions and limitations under the License.
  *
  *
- * NOTE: This app is using experimental precipitation measurement from weather feature to determine if watering should occur.
- *
 **/
 
 definition(
-    name: "Sprinkler Timer",
-    namespace: "d8adrvn/smart_sprinkler",
-    author: "matt@nichols.name",
-    description: "Schedule sprinklers run unless rain is rain.",
+	name: "Sprinkler Timer",
+	namespace: "d8adrvn/smart_sprinkler",
+	author: "matt@nichols.name",
+	description: "Schedule sprinklers run unless there is rain.",
 	category: "Green Living",
-    iconUrl: "https://s3.amazonaws.com/smartapp-icons/Meta/water_moisture.png",
-    iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Meta/water_moisture@2x.png"
+	iconUrl: "https://s3.amazonaws.com/smartapp-icons/Meta/water_moisture.png",
+	iconX2Url: "https://s3.amazonaws.com/smartapp-icons/Meta/water_moisture@2x.png"
 )
 
 preferences {
 	page(name: "schedulePage", title: "Schedule", nextPage: "sprinklerPage", uninstall: true) {
-		section("Water every...") {
-			input "days", "number", title: "Days?", required: false
-		}
-		
 		section {
 			input (
 				name: "wateringDays", 
@@ -41,7 +35,11 @@ preferences {
 				required: false,
 				multiple: true, 
 				metadata: [values: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']])
-			//log.debug "days to run are: ${wateringDays}"
+			log.debug "days to run are: ${wateringDays}"
+		}
+
+		section("Water every...") {
+			input "days", "number", title: "Days?", required: false
 		}
 		
 		section("Select times to turn them on...") {
@@ -54,6 +52,7 @@ preferences {
 			input "schedulerVirtualDevice", "capability.actuator", required: false
 		}
 	}
+    
 	page(name: "sprinklerPage", title: "Sprinkler Controller Setup", install: true) {
 		section("Sprinkler switches...") {
 			input "switches", "capability.switch", multiple: true
@@ -69,8 +68,7 @@ preferences {
 			input "zone8", "string", title: "zone 8", multiple: false, required: false
 		}
 	}
-    
-	/*
+	
 	page(name: "weatherPage", title: "Weather Settings", install: true) {
 		section("Zip code to check weather...") {
 			input "zipcode", "text", title: "Zipcode?", required: false
@@ -79,32 +77,29 @@ preferences {
 			input "wetThreshold", "number", title: "Inches?", required: false
 		}
 	}
-    */
-    
 }
 
 def installed() {
-	log.debug "Installed: $settings [$wateringDays]"
-    scheduling()
-    schedule(waterTime, scheduleCheck)
+	log.debug "Installed: $settings"
+	scheduling()
+	schedule(waterTime, scheduleCheck)
 }
 
 def updated() {
-	log.debug "Updated: $settings [$wateringDays]"
+	log.debug "Updated: $settings"
 	unschedule()
-    scheduling()
-
+	scheduling()
 }
 
 // Scheduling
 def scheduling() {
-    schedule(waterTimeOne, "waterTimeOneStart")
+	schedule(waterTimeOne, "waterTimeOneStart")
 	if (waterTimeTwo) {
-    	schedule(waterTimeTwo, "waterTimeTwoStart")
-   	}
+		schedule(waterTimeTwo, "waterTimeTwoStart")
+	}
 	if (waterTimeThree) {
-    	schedule(waterTimeThree, "waterTimeThreeStart")
-   	}
+		schedule(waterTimeThree, "waterTimeThreeStart")
+	}
 }
 
 def waterTimeOneStart() {
@@ -116,7 +111,6 @@ def waterTimeTwoStart() {
 def waterTimeThreeStart() {
 	scheduleCheck()
 }
-
 
 def scheduleCheck() {
 	log.debug("Schedule check")
@@ -150,13 +144,83 @@ def scheduleCheck() {
 	}
 }
 
+def isWateringDay() {
+	if(!wateringDays || wateringDays?.empty()) return true
+	
+	def today = new Date().format("EEEE", location.timeZone)
+	log.debug "today: ${today}, days: ${days}"
+	if (wateringDays.contains(today)) {
+		return true
+	}
+	log.trace "watering is not scheduled for today"
+	return false
+}
+
 def enoughTimeElapsed(schedulerState) {
 	if(!days) return true
 	return (daysSince() >= days)
 }
 
+def daysSince() {
+	if(!state.daysSinceLastWatering) state.daysSinceLastWatering = 0
+	state.daysSinceLastWatering
+}
+
 def isRainDelay() { 
-	wasWetYesterday() || isWet() || isStormy()
+	if(wasWetYesterday() || isWet() || isStormy()) {
+		if('rainDelay' in switches.supportedCommands.collect { it.name }) {
+			switches.rainDelay()
+		}
+		if('rainDelay' in schedulerVirtualDevice.supportedCommands.collect { it.name }) {
+			switches.rainDelay()
+		}
+		return true
+	}
+	return false
+}
+
+def wasWetYesterday() {
+	if (!zipcode) return false
+	
+	def yesterdaysWeather = getWeatherFeature("yesterday", zipcode)
+	def yesterdaysPrecip=yesterdaysWeather.history.dailysummary.precipi.toArray()
+	def yesterdaysInches=yesterdaysPrecip[0].toFloat()
+	log.info("Checking yesterdays percipitation for $zipcode: $yesterdaysInches in")
+	
+	if (yesterdaysInches > (wetThreshold?.toFloat() ?: 0.5)) {
+		return true  // rainGuage is full
+	} else {
+		return false // rainGuage is empty or below the line
+	}
+}
+
+def isWet() {
+	if (!zipcode) return false
+	
+	def todaysWeather = getWeatherFeature("conditions", zipcode)
+	def todaysInches = todaysWeather.current_observation.precip_today_in.toFloat()
+	log.info("Checking percipitation for $zipcode: $todaysInches in")
+	if (todaysInches > (wetThreshold?.toFloat() ?: 0.5)) {
+		return true  // rain gauge is full
+	}
+	else {
+		return false
+	}
+}
+
+def isStormy() {
+	if (!zipcode) return false
+	
+	def forecastWeather = getWeatherFeature("forecast", zipcode)
+	def forecastPrecip=forecastWeather.forecast.simpleforecast.forecastday.qpf_allday.in.toArray()
+	def forecastInches=forecastPrecip[0].toFloat()
+	log.info("Checking forecast percipitation for $zipcode: $forecastInches in")
+	if (forecastInches > (wetThreshold?.toFloat() ?: 0.5)) {
+		return true  // rain guage is forecasted to be full
+	}
+	else {
+		return false
+	}
 }
 
 def turnOnZone(z) {
@@ -186,66 +250,4 @@ def water() {
 
 def anyZoneTimes() {
 	return zone1 || zone2 || zone3 || zone4 || zone5 || zone6 || zone7 || zone8
-}
-
-def isWateringDay() {
-	if(!wateringDays || wateringDays?.empty()) return true
-	
-	def today = new Date().format("EEEE", location.timeZone)
-	log.debug "today: ${today}, days: ${days}"
-	if (wateringDays.contains(today)) {
-		return true
-	}
-	log.trace "watering is not scheduled for today"
-	return false
-}
-
-def wasWetYesterday() {
-	if (!zipcode) return false
-	
- 	def yesterdaysWeather = getWeatherFeature("yesterday", zipcode)
-    def yesterdaysPrecip=yesterdaysWeather.history.dailysummary.precipi.toArray()
-   	def yesterdaysInches=yesterdaysPrecip[0].toFloat()
-    log.info("Checking yesterdays percipitation for $zipcode: $yesterdaysInches in")
-    
-    if (yesterdaysInches > wetThreshold.toFloat()) {
-        return true  // rainGuage is full
-    }
- 	else {
-        return false // rainGuage is empty or below the line
-    }
-}
-
-def isWet() {
-	if (!zipcode) return false
-	
-	def todaysWeather = getWeatherFeature("conditions", zipcode)
-   	def todaysInches = todaysWeather.current_observation.precip_today_in.toFloat()
-	log.info("Checking percipitation for $zipcode: $todaysInches in")
-	if (todaysInches > wetThreshold.toFloat()) {
-  		return true  // rain gauge is full
-	}
-	else {
-		return false
-	}
-}
-
-def isStormy() {
-	if (!zipcode) return false
-	
-	def forecastWeather = getWeatherFeature("forecast", zipcode)
-	def forecastPrecip=forecastWeather.forecast.simpleforecast.forecastday.qpf_allday.in.toArray()
-	def forecastInches=forecastPrecip[0].toFloat()
-	log.info("Checking forecast percipitation for $zipcode: $forecastInches in")
-	if (forecastInches > wetThreshold.toFloat()) {
-		return true  // rain guage is forecasted to be full
-	}
-	else {
-		return false
-	}
-}
-
-def daysSince() {
-	if(!state.daysSinceLastWatering) state.daysSinceLastWatering = 0
-	state.daysSinceLastWatering
 }
